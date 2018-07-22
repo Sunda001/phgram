@@ -29,24 +29,24 @@ if ($text == '/start') {
 <?php
 include 'bot.class.php';
 $bot = new Bot('TOKEN');
-set_time_limit(0);
+# set_time_limit(0); # cuidado ao usar
 
 $offset = 0;
 
-start: # marco para o loop
-$updates = $bot->getUpdates(['offset' => $offset])['result'];
-foreach ($updates as $key => $update) {
-	$bot->setData($update); # preenche os dados de update
+while (true) {
+	$updates = $bot->getUpdates(['offset' => $offset])['result'];
+	foreach ($updates as $key => $update) {
+		$bot->setData($update); # preenche os dados de update
 
-	$text = $bot->Text();
-	$chat_id = $bot->ChatID();
+		$text = $bot->Text();
+		$chat_id = $bot->ChatID();
 
-	if ($text == '/start') {
-		$bot->sendMessage(['chat_id' => $chat_id, 'text' => 'Olá, mundo!']);
+		if ($text == '/start') {
+			$bot->sendMessage(['chat_id' => $chat_id, 'text' => 'Olá, mundo!']);
+		}
 	}
+	$offset = $update['update_id']+1;
 }
-$offset = $update['update_id']+1;
-goto start; # volta ao marco
 ```
 
 # Métodos
