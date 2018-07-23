@@ -207,12 +207,11 @@ Estes são usados para construir facilmente valores para passar como 'reply_mark
 
 ##### btn
 - Constrói um botão para ser usado num InlineKeyboad (um InlineKeyboardButton).
-- Parâmetros: 2 ou 3.
-A forma comum é:
+- Parâmetros:
     - text : texto do botão.
-    - type : tipo de botão (callback_data, url, switch_inline_query...)
     - value : valor para ser usado no botão.
-Se o _type_ for 'callback_data', você pode omitir este parâmetro e passar somente 2: o texto e o 'data'
+    - type : tipo de botão (callback_data, url, switch_inline_query...)
+O _type_ pode ser omitido, se seu valor for callback_data.
 
 ##### ikb
 - Constrói um InlineKeyboard.
@@ -221,7 +220,7 @@ Se o _type_ for 'callback_data', você pode omitir este parâmetro e passar some
 ```
 $options = [
     [ ['Texto', 'data aqui'] ], # uma linha com um botão com callback_data
-    [ ['Outro texto', 'url', 't.me/usernein'] ], # uma linha com um botão com url
+    [ ['Outro texto', 't.me/usernein', 'url'] ], # uma linha com um botão com url
     [ ['Texto3', 'botão3'], ['Texto4', 'botão4'] ], # uma linha com dois botões com callback_data
 ];
 $keyboard = ikb($options);
