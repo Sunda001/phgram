@@ -264,7 +264,7 @@ class Bot {
 	*/
 	public function in_chat(int $user_id, $chat_id) {
 		$member = $this->getChatMember(['chat_id' => $chat_id, 'user_id' => $user_id]);
-		if (!$member['ok'] or in_array($member['status'], ['left', 'restricted', 'kicked'])) {
+		if (!$member['ok'] or in_array($member['result']['status'], ['left', 'restricted', 'kicked'])) {
 			return FALSE;
 		}
 		
@@ -505,7 +505,7 @@ class Bot {
 *
 * @return array InlineKeyboardButton object. See https://core.telegram.org/bots/api#inlinekeyboardbutton
 */
-function btn(string $text, string $param, string $type = 'callback_data') {
+function btn($text, string $param, string $type = 'callback_data') {
 	return ['text' => $text, $type => $param];
 }
 
@@ -520,7 +520,7 @@ function btn(string $text, string $param, string $type = 'callback_data') {
 * 
 * @return array KeyboardButton object. See https://core.telegram.org/bots/api#keyboardbutton
 */
-function kbtn(string $text, bool $request_contact = FALSE, bool $request_location = FALSE) {
+function kbtn($text, bool $request_contact = FALSE, bool $request_location = FALSE) {
 	$replyMarkup = [
 		'text' => $text,
 		'request_contact' => $request_contact,
