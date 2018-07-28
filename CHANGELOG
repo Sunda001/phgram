@@ -1,0 +1,8 @@
+Changes in the last (of this file) commit:
+    - added new method Name() – a concatenation of FirstName() and LastName()
+    - new webhook/example2.php
+    - little fix in webhook/example1.php
+    - performance improvements
+    - some bug (and translation) fixes
+    - all working fine with methods like getMe, that doesn't requires parameters
+    - now inexistent methods are properly handled by BotApi

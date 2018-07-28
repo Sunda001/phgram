@@ -4,22 +4,31 @@
 *
 * Based on TelegramBotPHP (https://github.com/Eleirbag89/TelegramBotPHP)
 *
-* @author Cezar Pauxis
+* @author Cezar Pauxis (https://t.me/usernein)
 * @license https://github.com/usernein/phgram/blob/master/LICENSE
 */
 class Bot {
 	/**
 	* The bot token. Acessible from outside.
+	*
 	* @var string $bot_token
 	*/
 	public $bot_token = '';
 	
 	/**
 	* The update data. Automatically filled when a new instance of the class is created.
-	* All update-related methods uses this array. Can be set directly or using setData.
+	* All update-related methods uses this array. Can be set (again) using setData.
+	*
 	* @var array $data
 	*/
-	public $data = [];
+	private $data = [];
+	
+	/**
+	* The type of the update. e.g. callback_query, message, edited_message, inline_query..
+	* 
+	* @var string $update_type
+	**/
+	private $update_type = '';
 	
 	/**
 	* Contructor. Only needs the bot token. Fills the internal data and bot_token.
@@ -29,6 +38,7 @@ class Bot {
 	public function __construct(string $bot_token) {
 		$this->bot_token = $bot_token;
 		$this->data = $this->getData();
+		$this->update_type = array_keys($this->data)[1];
 	}
 	
 	/**
@@ -63,14 +73,15 @@ class Bot {
 	
 	/**
 	* The __call() magic method is called when the code calls a non-existing method. So you can call any API method and it will be called with a POST request.
-	* Be carefully: __call() will be called with non-api methods, too. By the way, all methods are case-insentitive.
+	* Be careful: __call() will be called with non-api methods, too. By the way, all methods are case-insentitive.
 	*
 	* @param string $method Method's name, according to Bot API.
 	* @param array $args Method's parameters, according to Bot API.
 	*
 	* @return array An array containing the method's result. We'll call it as MethodResult. See https://core.telegram.org/bots/api#making-requests.
 	*/
-	public function __call(string $method, array $args = [[]]) {
+	public function __call(string $method, array $args = NULL) {
+		if (!$args) $args = [[]];
 		$url = "https://api.telegram.org/bot{$this->bot_token}/{$method}";
 		$reply = $this->sendAPIRequest($url, $args[0]);
 		
@@ -210,12 +221,12 @@ class Bot {
 	* @return array Update. See https://core.telegram.org/bots/api#update
 	*/
 	public function getData() {
-		if ($this->data == []) {
-			$rawData = file_get_contents('php://input');
-			return json_decode($rawData, TRUE);
-		} else {
-			return $this->data;
+		if (!$this->data) {
+			$update_as_json = file_get_contents('php://input');
+			$this->data = json_decode($update_as_json, TRUE);
 		}
+		
+		return $this->data;
 	}
 
 	/**
@@ -237,7 +248,7 @@ class Bot {
 	* @retuen string Update's type.
 	*/
 	public function getUpdateType() {
-		return @array_keys($this->data)[1];
+		return $this->update_type;
 	}
 	
 	/**
@@ -264,7 +275,7 @@ class Bot {
 	*/
 	public function in_chat(int $user_id, $chat_id) {
 		$member = $this->getChatMember(['chat_id' => $chat_id, 'user_id' => $user_id]);
-		if (!$member['ok'] or in_array($member['result']['status'], ['left', 'restricted', 'kicked'])) {
+		if (!$member['ok'] || in_array($member['result']['status'], ['left', 'restricted', 'kicked'])) {
 			return FALSE;
 		}
 		
@@ -279,7 +290,7 @@ class Bot {
 	* @return bool
 	*/
 	public function is_group() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['chat'])) {
 			return ($this->data[$type]['chat']['type'] == 'supergroup');
 		} elseif (isset($this->data[$type]['message']['chat'])) {
@@ -296,7 +307,7 @@ class Bot {
 	* @return bool
 	*/
 	public function is_private() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['chat'])) {
 			return ($this->data[$type]['chat']['type'] == 'private');
 		} elseif (isset($this->data[$type]['message']['chat'])) {
@@ -313,7 +324,7 @@ class Bot {
 	* @param void
 	*/
 	public function Text() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['text'])) {
 			return $this->data[$type]['text'];
 		} elseif (isset($this->data[$type]['message']['text'])) {
@@ -324,7 +335,7 @@ class Bot {
 	}
 
 	public function ChatID() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['chat']['id'])) {
 			return $this->data[$type]['chat']['id'];
 		} elseif (isset($this->data[$type]['message']['chat']['id'])) {
@@ -335,7 +346,7 @@ class Bot {
 	}
 
 	public function MessageID() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['message_id'])) {
 			return $this->data[$type]['message_id'];
 		} elseif (isset($this->data[$type]['message']['message_id'])) {
@@ -346,7 +357,7 @@ class Bot {
 	}
 
 	public function Date() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['date'])) {
 			return $this->data[$type]['date'];
 		} elseif (isset($this->data[$type]['message']['date'])) {
@@ -357,7 +368,7 @@ class Bot {
 	}
 
 	public function UserID() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['from']['id'])) {
 			return $this->data[$type]['from']['id'];
 		} elseif (isset($this->data[$type]['message']['from']['id'])) {
@@ -368,7 +379,7 @@ class Bot {
 	}
 
 	public function FirstName() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['from']['first_name'])) {
 			return $this->data[$type]['from']['first_name'];
 		} elseif (isset($this->data[$type]['message']['from']['first_name'])) {
@@ -379,7 +390,7 @@ class Bot {
 	}
 
 	public function LastName() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['from']['last_name'])) {
 			return $this->data[$type]['from']['last_name'];
 		} elseif (isset($this->data[$type]['message']['from']['last_name'])) {
@@ -388,9 +399,20 @@ class Bot {
 		
 		return NULL;
 	}
+	
+	public function Name() {
+		$first_name = $this->FirstName();
+		$last_name = $this->LastName();
+		if ($first_name) {
+			$name = $first_name.($last_name? " {$last_name}" : '');
+			return $name;
+		}
+		
+		return NULL;
+	}
 
 	public function Username() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['from']['username'])) {
 			return $this->data[$type]['from']['username'];
 		} elseif (isset($this->data[$type]['message']['from']['username'])) {
@@ -401,7 +423,7 @@ class Bot {
 	}
 
 	public function ReplyToMessage() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['reply_to_message'])) {
 			return $this->data[$type]['reply_to_message'];
 		} elseif (isset($this->data[$type]['message']['reply_to_message'])) {
@@ -412,7 +434,7 @@ class Bot {
 	}
 
 	public function Caption() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		if (isset($this->data[$type]['caption'])) {
 			return $this->data[$type]['caption'];
 		} elseif (isset($this->data[$type]['message']['caption'])) {
@@ -443,22 +465,22 @@ class Bot {
 	}
 
 	public function Location() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		return $this->data[$type]['location'] ?? NULL;
 	}
 
 	public function Photo() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		return $this->data[$type]['photo'] ?? NULL;
 	}
 
 	public function Video() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		return $this->data[$type]['video'] ?? NULL;
 	}
 
 	public function Document() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		return $this->data[$type]['document'] ?? NULL;
 	}
 
@@ -467,12 +489,12 @@ class Bot {
 	}
 	
 	public function ForwardFrom() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		return $this->data[$type]['forward_from'] ?? NULL;
 	}
 
 	public function ForwardFromChat() {
-		$type = $this->getUpdateType();
+		$type = $this->update_type;
 		return $this->data[$type]['forward_from_chat'] ?? NULL;
 	}
 	
