@@ -1,4 +1,6 @@
 # phgram
+*IMPORTANT:* the README.md will not update for at least _1 month_. Check all news at t.me/hpxlist
+
 Uma classe feita com amor e PHP para ajudar no desenvolvimento de bots no Telegram.
 Desenvolvida com base na [TelegramBotPHP](https://github.com/Eleirbag89/TelegramBotPHP).
 
