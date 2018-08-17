@@ -2,7 +2,6 @@
 /*
 + Author: t.me/usernein
 + Include this file in your code and be happy :)
-*
 * Example:
 include 'get_error.php';
 $error_bot = '501707370:AAE23NOEnjwsuKBwZilFLRDTETqKarwKBxU';
