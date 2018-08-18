@@ -10,7 +10,7 @@ $error_admin = 276145711;
 * The bot.class.php should be on the same directory of this file
 */
 
-$errot_bot = 'TOKEN';
+$error_bot = 'TOKEN';
 $error_admin = 276145711;
 
 // returns the error type name by code
