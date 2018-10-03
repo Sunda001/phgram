@@ -6,6 +6,7 @@
 include 'get_error.php';
 $error_bot = '501707370:AAE23NOEnjwsuKBwZilFLRDTETqKarwKBxU';
 $error_admin = 276145711;
+
 *
 * The bot.class.php should be on the same directory of this file
 */
@@ -37,7 +38,7 @@ function get_error_type ($code) {
 
 // handle errors
 function getError($error_type, $error_message, $error_file, $error_line) {
-	if (error_reporting() === 0) return true;
+	if (error_reporting() === 0) return false;
 	
 	global $error_admin, $error_bot;
 	require_once 'bot.class.php';
@@ -52,6 +53,7 @@ function getError($error_type, $error_message, $error_file, $error_line) {
 ($bot->ChatID()? "in {$bot->ChatID()}." : "id: {$bot->ChosenInlineResult()['inline_message_id']}.")." Update type: '{$bot->getUpdateType()}'.
 Error type: {$error_type}.";
 	$bot->sendMessage(['chat_id' => $error_admin, 'text' => $str, 'parse_mode' => 'html']);
+	return false;
 }
 
 // handle exceptions
@@ -69,5 +71,6 @@ function exception_handler($e) {
 
 	$bot->sendMessage(['chat_id' => $error_admin, 'text' => $str, 'parse_mode' => 'html']);
 }
+
 set_exception_handler('exception_handler');
 set_error_handler('getError');

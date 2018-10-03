@@ -1,2 +1,20 @@
-Changes in the last (of this file) commit:
-  - New methods added and completely rewrite of README
+Many new methods has been added:
+- is_admin() for checking if a user is an administrator of the specified docs.
+- read_file() for reading the contents of the specified file.
+- mention() for dinamically generating a mention to a user.
+- getValue() for search a value inside the update data.
+- ChatType() for getting the chat type.
+- Name() for getting the combination of user's FirstName and LastName.
+- Language() for getting the user's language.
+- Entities() for getting the entities of the message/caption.
+
+The order of kb() parameters has been altered. Now $resize_keyboard is at the front of $one_time_keyboard.
+
+Now the shortcut edit() accepts only 2 parameters, instead of 3.
+
+Now the result of reply_markup functions (kb, ikb, hide_kb and forceReply) is a pretty JSON.
+
+A new error reporting feature has been added. Now phgram lets you know when a method fails.
+
+Now the result of ALL api methods is a instance of MethodResult.
+Check its features and more stuffs on the completely rewritten documentation (README) at github repo.

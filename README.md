@@ -24,7 +24,7 @@ if ($text == '/start') {
 	$bot->sendMessage(['chat_id' => $chat_id, 'text' => 'Hello World!']);
 }
 ```
-### Long polling (getUpdates)
+### Long polling
 ```php
 <?php
 require 'bot.class.php';
@@ -32,7 +32,7 @@ $bot = new Bot('TOKEN:HERE');
 
 $offset = 0;
 while (true) {
-	$updates = $bot->getUpdates(['offset' => $offset])['result'];
+	$updates = $bot->getUpdates(['offset' => $offset, 'timeout' => 300])['result'];
 	foreach ($updates as $key => $update) {
 		$bot->setData($update);
 
