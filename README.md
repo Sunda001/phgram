@@ -1,149 +1,115 @@
 # phgram
-*IMPORTANT:* the README.md will not update for at least _1 month_. Check all news at t.me/hpxlist
 
-Uma classe feita com amor e PHP para ajudar no desenvolvimento de bots no Telegram.
-Desenvolvida com base na [TelegramBotPHP](https://github.com/Eleirbag89/TelegramBotPHP).
+Dinamic, fast and simple framework to develop Telegram Bots with PHP7.
+Based on [TelegramBotPHP](https://github.com/Eleirbag89/TelegramBotPHP).
 
-## Requerimentos
-* PHP 7.1 ou superior.
+## Requirements
+* PHP 7.0 or greater.
 
-## Instalação
+## Installing
+* Download `bot.class.php` and save it on your project directory.
+* Add `require 'bot.class.php';` at the top of your script.
 
-* Baixe e salve o `bot.class.php` na mesma pasta que o script do bot.
-* Adicione `include 'bot.class.php';` ao início do código e tenha tudo em mãos.
-
-## Exemplos
+## Examples
 ### Webhooks
-```
+```php
 <?php
-include 'bot.class.php';
-$bot = new Bot('TOKEN');
+require 'bot.class.php';
+$bot = new Bot('TOKEN:HERE');
 
 $text = $bot->Text();
 $chat_id = $bot->ChatID();
 
 if ($text == '/start') {
-	$bot->sendMessage(['chat_id' => $chat_id, 'text' => 'Olá, mundo!']);
+	$bot->sendMessage(['chat_id' => $chat_id, 'text' => 'Hello World!']);
 }
 ```
 ### Long polling (getUpdates)
-```
+```php
 <?php
-include 'bot.class.php';
-$bot = new Bot('TOKEN');
-# set_time_limit(0); # cuidado ao usar
+require 'bot.class.php';
+$bot = new Bot('TOKEN:HERE');
 
 $offset = 0;
-
 while (true) {
 	$updates = $bot->getUpdates(['offset' => $offset])['result'];
 	foreach ($updates as $key => $update) {
-		$bot->setData($update); # preenche os dados de update
+		$bot->setData($update);
 
 		$text = $bot->Text();
 		$chat_id = $bot->ChatID();
 
 		if ($text == '/start') {
-			$bot->sendMessage(['chat_id' => $chat_id, 'text' => 'Olá, mundo!']);
+			$bot->sendMessage(['chat_id' => $chat_id, 'text' => 'Hello World!']);
 		}
+		
+		$offset = $update['update_id']+1;
 	}
-	$offset = $update['update_id']+1;
 }
 ```
 
-# Métodos
+## BotAPI Methods
+phgram supports all methods and types described on the [official docs](core.telegram.org/bots/api).
+Just call any BotAPI method as a class method:
+```
+$bot->getChat(['chat_id' => '@hpxlist']);
+```
+```
+$bot->getMe();
+```
 
-Esta classe suporta todos os métodos e tipos da API de Bots do Telegram, atualizada.
-Basta chamar qualquer método passando os argumentos como uma array associativa (exceto quando o método não requer argumentos).
-Ex:
-    `$bot->getChat(['chat_id' => '@hpxlist']);`
-    `$bot->getMe();`
+- The result is an instance of `MethodResult`
+- All methods are case-insensitive.
 
-- O resultado é uma array associativa, gerada do JSON retornado pela API.
-- Os métodos, parâmetros e argumentos são todos _case-insentitive_.
+## phgram Methods
+### Shortcuts
+You have a range of method shortcuts. You can use it to make your code clean and easier to read, write and understand.
+e.g. instead of:
+```
+$bot->sendMessage(['chat_id' => $chat_id, 'text' => 'Hi!', 'parse_mode' => 'HTML', 'disable_web_page_preview' => true]);
+```
+use:
+```
+$bot->send('Hi!');
+```
 
-## Métodos especiais
-Alguns atalhos aos métodos e à outras informações foram adicionados:
+All methods accepts 1 or 2 arguments. The first is always the "main" argument, i.e. the most important argument on the method ('text' for sendMessage, 'document' for sendDocument...). The second argument is an optional associative array with custom/additional parameters to use in the method.
+Examples:
+```
+$bot->send('Hey');
+```
+```
+$bot->send('Hey', ['disable_notification' => TRUE]);
+```
 
-### Atalhos para métodos
+**P.S.:** Please remember that phgram support ALL methods of BotAPI. The list below is the list of **shortcuts**. You can normally call the methods in the traditional way.
 
-##### download_file
-- Use para salvar um arquivo localmente.
-- Parâmetros:
-    - file\_id : file\_id do arquivo no Telegram
-    - local\_path : Opcional. Caminho relativo para salvar o arquivo. Qualquer arquivo com o mesmo nome será sobrescrito.
-- Retorno: array associativa contendo 3 informações sobre o arquivo salvo.
-    - filename : nome do arquivo salvo.
-    - filepath : caminho do arquivo salvo.
-    - filesize : tamanho (em Bytes) do arquivo salvo.
+List of available shortcuts:
 
-##### send
-- Use para enviar rapidamente uma mensagem.
-    É nada mais que um atalho para `sendMessage`, com alguns valores padrões:
-      - chat\_id = chat atual
-      - parse\_mode = HTML
-      - disable\_web\_page\_preview = true
-- Parâmetros:
-    - text : texto para enviar.
-    - arguments : Opcional. array associativa contendo valores para adicionar à chamada.
-- Retorno: o mesmo que `sendMessage`
+Name|Method|Default parameters|Note
+---|---|---|---
+send|sendMessage|chat\_id=ChatID(), parse\_mode=HTML, disable\_web\_page\_preview=TRUE|The first parameter is the text.
+reply|sendMessage|chat\_id=ChatID(), parse\_mode=HTML, disable\_web\_page\_preview=TRUE, reply\_to\_message\_id=MessageID()|The first parameter is the text.
+edit|editMessageText|chat\_id=ChatID(), parse\_mode=HTML, disable\_web\_page\_preview=TRUE, message\_id=MessageID()|The first parameter is the text.
+doc|sendDocument|chat\_id=ChatID(), parse\_mode=HTML, disable\_web\_page\_preview=TRUE|The first parameter is the relative path to the document to upload.
+action|sendChatAction|chat\_id=ChatID(), action=typing|The first parameter, also optional, is the action.
 
-##### reply
-- O mesmo que `send`, mas adiciona o valor da função especial `reply_to` como 'reply\_to\_message\_id'.
+### Special shortcurts:
 
-##### reply_to
-- Retorna o message\_id da mensagem respondida (reply\_to\_\message->message\_id) ou o message\_id da mensagem atual.
-- Parâmetros: não requer
+Name|Description|Parameters|Return|Note
+---|---|---|---|---
+read\_file|Get the contents of a file|(String, required) file\_id|(String) Content of the file.|This function don't work with files bigger than 20MB.
+download\_file|Get the contents of a file and save it into a local file|(String, required) file\_id, (String, optional) local\_file\_path|If the download was successful, returns (Integer) size of the file. Otherwise returns FALSE.|This function don't work with files bigger than 20MB. If the second argument is omitted, then the file is saved with its original name in the current working directory.
+mention|Generate a mention to a user\_id. If the user has username, it is returned. If not, a HTML/Markdown mention hyperlink is returned.|(Integer, required) user\_id, (String, optional) parse\_mode|(String) A mention to the user.|In case of errors, the passed id is returned. The default parse mode is HTML.
+in\_chat|Check if a user is in the specified chat.|(Integer, required) user\_id, (Mixed, required) chat\_id|(Bool)|
+is\_admin|Check if a user is an administrator of the specified chat.|(Integer, optional) user\_id, (Mixed, optional) chat\_id|(Bool)|The default value of the first and second parameters are, respectively, the current user id and chat id.
+is\_group|Check if the current chat is a supergroup.|(void)|(Bool)|
+is\_private|Check if the current chat is a private conversation.|(void)|(Bool)|
+respondWebhook|Prints out the method and arguments as response to webhook.|(String, required) method, (Array, required) arguments)|(void)|
+Chat|Returns the Chat object of the specified Chat id|(Mixed, optional) the chat id|(Array) the Chat object|If the first argument is omitted or NULL, it will return the Chat object of the current chat
 
-##### doc
-- Use para enviar um arquivo local rapidamente.
-    O formato de parâmetros é semelhante ao dos métodos acima, mas o primeiro parâmetro, em vez de texto, é o caminho relativo para o arquivo.
-- Retorno: o mesmo que `sendDocument`
-
-##### action
-- Envia um 'ChatAction' a um chat. Exemplo: 'escrevendo...'
-- Parâmetros:
-    - action : Opcional. Nome da ação para enviar. Padrão: typing
-    - chat\_id : Opcional. Id do chat para enviar a ação. Padrão: chat atual
-- Retorno: o mesmo que `sendChatAction`
-
-##### edit
-- Edita uma mensagem.
-- Parâmetros:
-    - text : texto novo para a mensagem
-    - message\_id : mensagem alvo
-    - arguments : Opcional. array associativa contendo valores para adicionar à chamada. Padrão: o mesmo que `send`
-- Retorno: o mesmo que `editMessageText`
-
-##### Chat
-- Retona informação de um chat. Atalho para `getChat`
-- Parâmetros:
-    - chat\_id : Opcional. Chat alvo. Padrão: chat atual.
-- Retorno: o mesmo que `getChat`
-
-##### is_group
-- Se o chat atual for um supergrupo, retorna TRUE, caso contrário, FALSE.
-- Parâmetros: não requer
-
-##### is_private
-- Se o chat atual for um chat privado (usuário-bot), retorna TRUE, caso contrário, FALSE.
-- Parâmetros: não requer
-
-##### in_chat
-- Use para checar se um usuário está presente em determinado chat.
-- Parâmetros:
-    - user\_id : id do usuário para buscar.
-    - chat\_id : id do chat para buscar o usuário.
-- Retorno: valor booleano, que é FALSE caso o usuário não esteja no chat ou o bot não tenha feito a chamada com sucesso. Caso contrário, retorna TRUE.
-
-##### respondWebhook
-- Responde com um método diretamente ao webhook.
-- Parâmetros:
-    - method : método desejado
-    - arguments : argumentos do método
-
-### Atalhos para informaçôes
-Em vez de ficar usando coisas como:
+### Data shortcuts
+Instead of use things like:
 ```
 <?php
 $content = file_get_contents('php://input');
@@ -153,118 +119,205 @@ $chat_id = $update['message']['chat']['id'];
 $user_id = $update['message']['from']['id'];
 $message_id = $update['message']['message_id'];
 ```
-, esta classe oferece formas práticas e dinâmicas para acessar tais valores:
+phgram gives you simple and dinamic method to get these values:
 ```
 <?php
 include 'bot.class.php';
-$bot = new Bot('token');
+$bot = new Bot('TOKEN:HERE');
 
 $text = $bot->Text();
 $chat_id = $bot->ChatID();
 $user_id = $bot->UserID();
 $message_id = $bot->MessageID();
 ```
-Não interessa se o update é um post, mensagem, edição de post, edição de mensagem, callback\_query, inline\_query, etc. O método buscará por tal valor, e se não achar, retorna NULL.
-Veja que em casos de callback\_query, que contém o campo 'message', quando o método não achar um valor como callback\_query->text, ele vai retornar o 'text' do campo 'message' presente.
-Em casos que nem o 'text' nem o 'message' estão presentes, como em updates envolvendo consulta inline, o método retornará NULL.
+Doesn't really matter what the update is of. If the value exists, it is returned. If not, NULL is returned.
 
-Este são os métodos para obter informações do update:
-* Text
-* ChatID
-* MessageID
-* Date
-* UserID
-* FirstName
-* LastName
-* Username
-* ReplyToMessage
-* Caption
-* InlineQuery
-* ChosenInlineResult
-* ShippingQuery
-* PreCheckoutQuery
-* CallbackQuery
-* Location
-* Photo
-* Video
-* Document
-* UpdateID
-* ForwardFrom
-* ForwardFromChat
-* Chat (também considerado atalho a um método)
-* getUpdateType (retorna o tipo de update, como 'message', 'channel_post', 'chosen_inline_result', etc.
-* getData (retorna o update, convertido para array. Use o método setData para alterar o valor do update)
+There are some special cases, as with calback\_query, that has 'message' field. The internal function 'getValue' will always search the value firstly outside 'message' field. If not found, it will search a correspondent value in inside 'message' field of callback\_query.
 
-### Funções de criação
-Note que são funções e não métodos.
-Cada um dos listados acima são usados pelo $bot:
-`$bot->send('Olá!');`
-`$bot->action();`
-E assim com todos.
-Os abaixo são funções definidas fora da classe, isto é, são chamadas diretamente:
-`ikb(....);`
-`forceReply()`
+e.g. in a callback\_query update, Text() will return the text of the message with the clicked button. However UserID() will return the id of the user that clicked the button, because callback\_query has a 'from' field and it gains priority over the 'from' inside 'message'.
 
-Estes são usados para construir facilmente valores para passar como 'reply_markup':
+This is the complete list of data shortcuts methods:
+* Text()
+* ChatID()
+* ChatType()
+* MessageID()
+* Date()
+* UserID()
+* FirstName()
+* LastName()
+* Name() _(FirstName + LastName)_
+* Username() _(without '@')_
+* Language()
+* ReplyToMessage()
+* Caption()
+* InlineQuery()
+* ChosenInlineResult()
+* ShippingQuery()
+* PreCheckoutQuery()
+* CallbackQuery()
+* Location()
+* Photo()
+* Video()
+* Document()
+* Entities()
+* UpdateID()
+* ForwardFrom()
+* ForwardFromChat()
 
-##### btn
-- Constrói um botão para ser usado num InlineKeyboad (um InlineKeyboardButton).
-- Parâmetros:
-    - text : texto do botão.
-    - value : valor para ser usado no botão.
-    - type : tipo de botão (callback_data, url, switch_inline_query...)
-O _type_ pode ser omitido, se seu valor for callback_data.
+### Utilities
 
-##### ikb
-- Constrói um InlineKeyboard.
-- Parâmetros: uma array, contendo como elementos, outras arrays (linhas), estas contendo as arrays dos botões. Complicado? Não muito:
-- Exemplo:
+Name|Description|Parameters|Note
+---|---|---|---
+getData|Returns the update as an associative array.|(void)|
+getUpdateType|Returns a string with the update type ('message', 'channel_post', 'callback_query')|(void)|
+setData|Writes a new value to the saved data (the return of getData())|(Array, required) The new data|The value of getUpdateType()
+
+### Reply\_markup functions
+Note that these items below are **functions**, **not methods**.
+These functions are used to generate JSON for reply\_markup parameter in some methods.
+
+#### ikb
+Use this function to generate a InlineKeyBoardMarkup object. Syntax:
 ```
 $options = [
-    [ ['Texto', 'data aqui'] ], # uma linha com um botão com callback_data
-    [ ['Outro texto', 't.me/usernein', 'url'] ], # uma linha com um botão com url
-    [ ['Texto3', 'botão3'], ['Texto4', 'botão4'] ], # uma linha com dois botões com callback_data
+	[ ['text', 'data', 'callback_data'] ]
 ];
 $keyboard = ikb($options);
 ```
-- Retorno: um JSON pronto para ser usado em métodos que usam o 'reply_markup'
+$options is a array of lines (also arrays). Each line contains at least one button (also an array).
+The button array may contain 2 or 3 elements, depending of the button type.
+Syntax:
+```
+[TEXT, VALUE, TYPE]
+```
+TEXT is the value that will be shown to the user.
+VALUE is the data of the button.
+TYPE is the type of the button (callback_data, url...). If TYPE is 'callback\_data', VALUE will be used as callback data. If TYPE is 'url', the VALUE will be the url which the button will link to, and so on.
 
-##### kbtn
-- Constrói um ReplyKeyboardButton.
-- Parâmetros:
-    - text : texto do botão.
-    - request_contact : Opcional. Booleano que diz se o botão pedirá o número de telefone. Padrão: false.
-    - request_location : Opcional. Booleano que diz se o botão pedirá a localização do usuário. Padrão: false.
+_Note:_ Only TEXT and VALUE are required. The default value of TYPE is callback\_data.
+So, for callback buttons, you can ommit the TYPE parameters. Check this example:
+```
+<?php
+require 'bot.class.php';
+$bot = new Bot('TOKEN:HERE');
+$options = [
+	[ ['Callback 1', 'callback 1'], ['Callback 2', 'callback 2'] ],
+	['URl 1', 't.me/usernein', 'url'], ['URl 2', 't.me/hpxlist', 'url'] ],
+	['Inline 1', 'aleatory query', 'switch_inline_query'], ['Inline 2', 'another query', 'switch_inline_query_current_chat'] ]
+];
+$keyboard = ikb($options);
+$bot->send('Testing', ['reply_markup' => $keyboard]);
+```
+Obviously you are free to edit, remove and add your own buttons. You can mix them, use emojis, apply your own format, and many cool things.
 
-##### kb
-- Constrói um ReplyKeyboardMarkup.
-- Parâmetros:
-    - options : uma array de linhas com botões (geradas pelo kbtn), semelhante ao ikb
-    - one_time : Opcional. Booleano que diz se o teclado será fechado após o uso. Ele continuará disponível, somente abaixará. Padrão: false.
-    - resize : Opcional. Booleano que diz se o teclado pode ser redimensionável. Padrão: false.
-    - selective : Opcional. Booleano que diz se o teclado aparecerá para usuários específicos. Padrão: true.
-- Exemplo:
+#### btn
+This function is used by `ikb()` to generate a InlineKeyboardButton object, so you probably will not use it.
+
+Syntax:
+```
+btn( TEXT, VALUE, TYPE='callback_data' )
+```
+
+The result is a InlineKeyboardButton object as array.
+
+#### kb
+Use this function to generate a ReplyKeyboardMarkup objects (also JSON-encoded).
+
+The first parameter is required and the other 3 are optional.
+
+Parameters:
+
+Name|Required|Type|Default value|Description
+---|---|---|---|---
+$options|Yes|Array||An array with the same lines structure of `ikb()`, but different buttons structure.
+$resize_keyboard|No|Boolean|FALSE|_Requests clients to resize the keyboard vertically for optimal fit (e.g., make the keyboard smaller if there are just two rows of buttons)._
+$one_time_keyboard|No|Boolean|FALSE|_Requests clients to hide the keyboard as soon as it's been used._
+$selective|No|Boolean|TRUE|_Use this parameter if you want to show the keyboard to specific users only._
+
+$options is a array of lines. Each line might contain KeyboardButton objects (as array) (generated by `kbtn()`) or for simple buttons, that doesn't request contact nor location, simple strings.
+
+Basic example:
 ```
 $options = [
-    [ kbtn('Olá!') ],
-    [ kbtn('Oi.') ],
+	[ 'Button 1', 'Button 2' ],
+	[ 'Button 3' ]
 ];
-$keyboard = kb($options);
+
+$keyboard = kb($options, TRUE);
+$bot->send('Testing...', ['reply_markup' => $keyboard]);
 ```
-- Retorno: um JSON pronto para ser usado em métodos que usam o 'reply_markup'
+More info at [docs](https://core.telegram.org/bots/api#replykeyboardmarkup).
 
-##### hide_kb
-- Comando usado para deletar o atual teclado do chat.
-- Parâmetros:
-    - selective : Opcional. Booleano que diz se o teclado desaparecerá para usuários específicos. Padrão: true.
-- Retorno: um JSON pronto para ser usado em métodos que usam o 'reply_markup'
+#### kbtn
+Use this function to generate a KeyboardButton object (as array, to use inside $options of `kb()`)
 
-##### forceReply
-- Comando usado para fazer com que, quando a mensagem for recebida, o cliente do usuário automaticamente abra o teclado como se pressionara 'Responder' à mensagem.
-- Parâmetros:
-    - selective : Opcional. Booleano que diz se o comando terá efeito para usuários específicos. Padrão: true.
-- Retorno: um JSON pronto para ser usado em métodos que usam o 'reply_markup'
+Parameters:
 
+Name|Required|Type|Default value|Description
+---|---|---|---|---
+$text|Yes|String||_Text of the button. If none of the optional fields are used, it will be sent as a message when the button is pressed._
+$request_contact|No|Boolean|FALSE|_If True, the user's phone number will be sent as a contact when the button is pressed. Available in private chats only_
+$request_location|No|Boolean|FALSE|_If True, the user's current location will be sent when the button is pressed. Available in private chats only_
 
+#### hide_kb
+Use this function to generate a ReplyKeyboardRemove object (JSON-encoded).
 
+The only parameter is the boolean $selective, that is optional. The default value is TRUE.
 
+#### forceReply
+Use this function to generate a ForceReply object (JSON-encoded).
+
+The only parameter is the boolean $selective, that is optional. The default value is TRUE.
+
+## Handling errors
+A method call might fail sometimes. To get reports of these errors, you may pass a chat id as second parameter to the Bot class constructor. Example:
+```
+<?php
+require 'bot.class.php';
+$bot = new Bot('TOKEN:HERE', 276145711);
+```
+The bot will send the JSON-encoded response of the unsuccessful call. Example:
+_{"ok":false,"error_code":400,"description":"Bad Request: message is not modified"}_
+
+To disable/enable error reporting, you can overwrite the `$debug` attribute with TRUE or FALSE. Set it to FALSE to disable and to TRUE to enable.
+
+To disable error reporting for a single method, put '@' before the call:
+```
+<?php
+require 'bot.class.php';
+$bot = new Bot('TOKEN:HERE', 276145711);
+$bot->debug = FALSE; # disabled
+$bot->debug = TRUE; # enabled again
+
+$bot->send('<Hey!'); # HTML is the default reply_markup, so this call will report to you a HTML error.
+@$bot->send('<Hey!'); # Quiet error
+```
+If you set the PHP value 'error_reporting' to 0, you will not receive these reports.
+
+You can also set a new value for `$debug_admin` attribute, to tell the script where should it send the reports.
+```
+<?php
+require 'bot.class.php';
+$bot = new Bot('TOKEN:HERE', 276145711);
+$bot->debug_admin = 204807919; # not me anymore :(
+$bot->debug_admin = 276145711; # me again :)
+$bot->debug_admin = 200097591; # changed again.
+$bot->debug = FALSE; # nobody
+```
+
+## MethodResult
+Every method called by phgram (even shortcuts) returns to you a MethodResult instance.
+This doesn't affect you or your code. Since it implements ArrayAccess, you can access its values by ['indexes']. But remember that it is also an object, so you can also access its values as $object->attributes.
+
+The coolest thing here is that you don't need to pass through 'result' to access its values:
+```
+<?php
+require 'bot.class.php';
+$bot = new Bot('TOKEN:HERE');
+
+$result = $bot->send('Hey!');
+echo $result['result']['message_id'] ."\n"; # this works!
+echo $result->result->message_id ."\n"; # this also works!
+echo $result['message_id'] ."\n"; # yeah, it works!
+echo $result->message_id ."\n"; # why it shouldn't? :)
+```
