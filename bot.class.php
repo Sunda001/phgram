@@ -108,30 +108,26 @@ class Bot {
 	
 	/**
 	* Use it to download a file (present in Telegram servers) to your server.
-	* Unfortunately it halts a bit during execution of code.
 	*
 	* @param string $file_id File id.
 	* @param string $local_file_path Path to save the file. Optional. Default is according to the original file name, in the working directory.
 	*
-	* return array [filename = saved file's name, filepath = saved file's path, filesize = saved file's size in bytes]
+	* return the file size or FALSE, 
 	*/
 	public function download_file(string $file_id, string $local_file_path = NULL) {
-		$telegram_file_info = $this->getFile(['file_id' => $file_id])['result'];
-		$telegram_file_path = $telegram_file_info['file_path'];
 		if (!$local_file_path) {
-			$local_file_path = $telegram_file_info['file_name'];
+			$info = $this->getFile(['file_id' => $file_id]);
+			if ($info['ok']) {
+				return FALSE;
+			} else {
+				$local_file_path = $info['file_name'];
+			}
 		}
-		$file_url = "https://api.telegram.org/file/bot{$this->bot_token}/{$telegram_file_path}";
-		$in = fopen($file_url, 'rb');
-		$out = fopen($local_file_path, 'wb');
- 
-		while ($chunk = fread($in, 8192)) {
-			fwrite($out, $chunk, 8192);
-		}
-		fclose($in);
-		fclose($out);
+		$contents = $this->read_file($file_id);
+		if ($contents === FALSE) return FALSE;
 		
-		return ['filename' => basename($local_file_path), 'filepath' => realpath($local_file_path), 'filesize' => filesize($local_file_path)];
+		file_put_contents($local_file_path, $contents);
+		return filesize($local_file_path);
 	}
 	
 	/**
@@ -144,7 +140,7 @@ class Bot {
 	public function read_file(string $file_id) {
 		$file_path = $this->getFile(['file_id' => $file_id])->file_path;
 		$file_url = "https://api.telegram.org/file/bot{$this->bot_token}/{$file_path}";
-		return file_get_contents($file_url);
+		return file_get_contents($file_url) ?: FALSE;
 	}
 	
 	/**
