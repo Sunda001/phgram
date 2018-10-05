@@ -21,7 +21,6 @@ class Bot {
 	public $debug = FALSE;
 	public $debug_admin;
 	
-	
 	/**
 	 * The object constructor.
 	 *
@@ -52,7 +51,6 @@ class Bot {
 	private function sendAPIRequest(string $url, array $content) {
 		$ch = curl_init($url);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
 		curl_setopt($ch, CURLOPT_POST, TRUE);
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $content);
 		$result = curl_exec($ch);
@@ -82,7 +80,7 @@ class Bot {
 	 * Every unexistent method and its arguments will be handled by __call() when called. Because of this, methods calls are case-insensitive. 
 	 *
 	 * @param string $method Method name
-	 * @param array $arguments A
+	 * @param array $arguments Associative array with arguments
 	 *
 	 * @return MethodResult
 	 */
@@ -93,7 +91,7 @@ class Bot {
 		
 		$reply = new MethodResult($reply);
 		if (!$reply['ok'] && $this->debug && error_reporting() > 0) {
-			$this->send(json_encode($reply->data), ['chat_id' => $this->debug_admin]);
+			@$this->send(json_encode($reply->data), ['chat_id' => $this->debug_admin]);
 		}
 		return $reply;
 	}
@@ -110,22 +108,14 @@ class Bot {
 	 * @return boolean or integer
 	 */
 	public function download_file(string $file_id, string $local_file_path = NULL) {
-		$telegram_file_info = $this->getFile(['file_id' => $file_id])['result'];
-		$telegram_file_path = $telegram_file_info['file_path'];
+		$contents = $this->read_file($file_id);
 		if (!$local_file_path) {
-			$local_file_path = $telegram_file_info['file_name'];
+			$local_file_path = @$this->getFile(['file_id' => $file_id])->file_name;
 		}
-		$file_url = "https://api.telegram.org/file/bot{$this->bot_token}/{$telegram_file_path}";
-		$in = fopen($file_url, 'rb');
-		$out = fopen($local_file_path, 'wb');
- 
-		while ($chunk = fread($in, 8192)) {
-			fwrite($out, $chunk, 8192);
+		if (!$local_file_path) {
+			return false;
 		}
-		fclose($in);
-		fclose($out);
-		
-		return ['filename' => basename($local_file_path), 'filepath' => realpath($local_file_path), 'filesize' => filesize($local_file_path)];
+		return file_put_contents($local_file_path, $contents);
 	}
 	
 	
@@ -299,7 +289,7 @@ class Bot {
 	 */
 	public function getData() {
 		if (!$this->data) {
-			$update_as_json = file_get_contents('php://input');
+			$update_as_json = file_get_contents('php://input') ?: '[]';
 			$this->data = json_decode($update_as_json, TRUE);
 		}
 		
@@ -548,6 +538,9 @@ class Bot {
 	}
 }
 
+# A MethodResult instance holding the last method result
+$lastResult = NULL;
+
 /**
  * Class that holds the result of every method call made with phgram
  *
@@ -555,23 +548,25 @@ class Bot {
 */ 
 class MethodResult implements ArrayAccess {
 	public $data = [];
-	public $ok = NULL;
-	public $result = NULL;
-	public $description = NULL;
-	public $error_code = NULL;
-	public $parameters = NULL;
+	public $json = '[]';
+	public $ok, $result, $description, $error_code, $parameters;
 	
 	/**
 	 * The object constructor.
 	 *
 	 * @param string The method result as JSON.
 	 */
-	public function __construct(string $json_result) {
+	public function __construct(string $json_result, bool $register_last_result = TRUE) {
+		global $lastResult;
+		$this->json = $json_result;
 		$this->data = json_decode($json_result, TRUE);
 		
 		$data = json_decode($json_result);
 		foreach ($data as $key => $value) {
 			$this->$key = $value;
+		}
+		if ($register_last_result == TRUE) {
+			$lastResult = new MethodResult($json_result, FALSE);
 		}
 	}
 	
