@@ -27,7 +27,7 @@ $user_id = $bot->UserID();
 if ($text == '/start') {
 	$keyboard = ikb([
 		[ ['1', 'button 1'], ['2', 'button 2'], ['3', 'button 3'] ],
-		[ ['You ^^', "tg://user?id={$user_id}", 'url'] ] # since BotApi v4.0
+		[ ['Me', "t.me/{$bot->getMe()->id}", 'url'] ]
 	]);
 	$bot->sendMessage(['chat_id' => $chat_id, 'text' => "Hello, {$bot->Name()}!", 'reply_markup' => $keyboard]);
 }
