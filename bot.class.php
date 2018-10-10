@@ -349,7 +349,7 @@ class Bot {
 	 */
 	public function in_chat(int $user_id, $chat_id) {
 		$member = $this->getChatMember(['chat_id' => $chat_id, 'user_id' => $user_id]);
-		if (!$member['ok'] || in_array($member['result']['status'], ['left', 'restricted', 'kicked'])) {
+		if (!$member['ok'] || in_array($member['result']['status'], ['left', 'kicked'])) {
 			return FALSE;
 		}
 		
