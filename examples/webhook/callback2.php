@@ -1,13 +1,14 @@
 <?php
 # with callback_query handling
-include 'bot.class.php';
+include 'phgram.phar';
 $bot = new Bot('TOKEN');
 
 $type = $bot->getUpdateType();
 
 if ($type == 'callback_query') {
-	$data = $bot->CallbackQuery()['data'];
-	$id = $bot->CallbackQuery()['id'];
+	$query = $bot->CallbackQuery();
+	$data = $query['data'];
+	$id = $query['id'];
 	
 	if ($data == 'button 1') {
 		$bot->answerCallbackQuery(['callback_query_id' => $id, 'text' => "Hey! This is the first button!"]);
@@ -27,7 +28,7 @@ $user_id = $bot->UserID();
 if ($text == '/start') {
 	$keyboard = ikb([
 		[ ['1', 'button 1'], ['2', 'button 2'], ['3', 'button 3'] ],
-		[ ['Me', "t.me/{$bot->getMe()->id}", 'url'] ]
+		[ ['Me', "t.me/{$bot->getMe()->username}", 'url'] ]
 	]);
 	$bot->sendMessage(['chat_id' => $chat_id, 'text' => "Hello, {$bot->Name()}!", 'reply_markup' => $keyboard]);
 }

@@ -9,7 +9,7 @@
 */
 class Bot {
 	# The bot token
-	public $bot_token = '';
+	private $bot_token = '';
 	
 	# The array of the update
 	private $data = [];
@@ -20,6 +20,20 @@ class Bot {
 	# Values for error reporting
 	public $debug = FALSE;
 	public $debug_admin;
+	
+	# Execution properties
+	public $report_mode = 'message';
+	public $report_show_view = 0;
+	public $report_show_data = 1;
+	public $report_obey_level = 1;
+	public $default_parse_mode = 'HTML';
+	public $report_max_args_len = 300;
+	
+	# cURL connection handler
+	private $ch;
+	
+	# MethodResult of the last method result
+	public $lastResult;
 	
 	/**
 	 * The object constructor.
@@ -37,8 +51,15 @@ class Bot {
 			$this->debug_admin = $debug_chat;
 			$this->debug = TRUE;
 		}
-	}
-	
+		
+		# Setting cURl handler
+		$this->ch = curl_init();
+		$opts = [
+			CURLOPT_RETURNTRANSFER => TRUE,
+			CURLOPT_POST => TRUE,
+		];
+		curl_setopt_array($this->ch, $opts);
+	}	
 	
 	/**
 	 * Makes the request to BotAPI.
@@ -49,15 +70,128 @@ class Bot {
 	 * @return string
 	 */
 	private function sendAPIRequest(string $url, array $content) {
-		$ch = curl_init($url);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-		curl_setopt($ch, CURLOPT_POST, TRUE);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, $content);
-		$result = curl_exec($ch);
-		curl_close($ch);
+		$opts = [
+			CURLOPT_URL => $url,
+			CURLOPT_POSTFIELDS => $content,
+		];
+		curl_setopt_array($this->ch, $opts);
+		$result = curl_exec($this->ch);
+		return $result;
+	}	
+	
+	/**
+	 * Handle calls of unexistent methods. i.e. BotAPI methods, which aren't set on this file.
+	 *
+	 * Every unexistent method and its arguments will be handled by __call() when called. Because of this, methods calls are case-insensitive. 
+	 *
+	 * @param string $method Method name
+	 * @param array $arguments Associative array with arguments
+	 *
+	 * @return MethodResult
+	 */
+	public function __call(string $method, array $arguments = NULL) {
+		global $lastResult;
+		if (!$arguments) {
+			$arguments = [[]];
+		}
+		
+		$url = "https://api.telegram.org/bot{$this->bot_token}/{$method}";
+		$response = $this->sendAPIRequest($url, $arguments[0]);
+		
+		$result = $this->lastResult = new MethodResult($response, $this);
+		if (!$result['ok'] && $this->debug && ($this->report_obey_level xor error_reporting() <= 0)) {
+			$debug = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1];
+			$class = @$debug['class'];
+			$type = @$debug['type'];
+			$function = ($class? 'method ' : 'function ').$class.$type.$debug['function'];
+			$debug['method'] = $method;
+			
+			$error_info = "Error thrown by the method {$debug['method']}, in {$debug['file']} on line {$debug['line']}, while calling the {$function}";
+			$text_log = "{$result->json}\n\n{$error_info}";
+			if ($this->report_show_data) {
+				$data = $this->data;
+				$type = @array_keys($data)[1];
+				$data = @array_values($data)[1];
+				$max_len = $this->report_max_args_len;
+				$data = array_map(function($item) use ($max_len) {
+					if (is_string($item)) {
+						return substr($item, 0, $max_len);
+					}
+				}, $data);
+				$text = $data['data'] ?? $data['query'] ?? $data['text'] ?? $data['caption'] ?? $data['result_id'] ?? $type;
+	
+				$sender = $data['from']['id'] ?? null;
+				$sender_name = $data['from']['first_name'] ?? null;
+		
+				$chat = $data['chat'] ?? $data['message']['chat'] ?? null;
+				$chat_id = $chat['id'] ?? null;
+				$message_id = $data['message_id'] ?? $data['message']['message_id'] ?? null;
+				if ($chat['type'] == 'private') {
+					$chat_mention = isset($chat['username'])? "@{$chat['username']}" : "<a href='tg://user?id={$sender}'>{$sender_name}</a>";
+				} else {
+					$chat_mention = isset($chat['username'])? "<a href='t.me/{$chat['username']}/{$message_id}'>@{$chat['username']}</a>" : "<i>{$chat['title']}</i>";
+				}
+				
+				if ($this->report_mode == 'message' && $this->default_parse_mode == 'HTML') {
+					$text_log .= htmlspecialchars("\n\n\"{$text}\", ").
+						($sender? "sent by <a href='tg://user?id={$sender}'>{$sender_name}</a>, " : '').
+						($chat? "in {$chat_id} ({$chat_mention})." : '')." Update type: '{$type}'.";
+				} else {
+					$chat_mention = isset($chat['username'])? "@{$chat['username']}" : '';
+					$text_log .= ("\n\n\"{$text}\", ").
+						($sender? "sent by {$sender} ({$sender_name}), " : '').
+						($chat? "in {$chat_id} ({$chat_mention})." : '')." Update type: '{$type}'.";
+				}
+			}
+			if ($this->report_show_view) {
+				$text_log .= "\n\n". phgram_pretty_debug(2);
+			}
+			
+			if ($this->report_mode == 'message') {
+				@$this->log($text_log);
+			} else if ($this->report_mode == 'notice') {
+				trigger_error($text_log);
+			}
+		}
 		return $result;
 	}
 	
+	/**
+	 * Sends a message to $debug_admin or all its elements, if it is an array
+	 *
+	 * @param $text The message text
+	 */
+	public function log($text) {
+		# using sendAPIRequest to avoid recursion in __call()
+		$url = "https://api.telegram.org/bot{$this->bot_token}/sendMessage";
+		if (!is_string($text) || !is_int($text)) {
+			$text = json_encode($text, 480);
+		}
+		$params = ['parse_mode' => $this->default_parse_mode, 'disable_web_page_preview' => TRUE, 'text' => $text];
+		if (is_array($this->debug_admin)) {
+			foreach ($this->debug_admin as $admin) {
+				$params['chat_id'] = $admin;
+				$this->sendAPIRequest($url, $params);
+			}
+		} else {
+			$params['chat_id'] = $this->debug_admin;
+			$this->sendAPIRequest($url, $params);
+		}
+	}
+	
+	/**
+	 * Casts the object to a string
+	 */
+	public function __toString() {
+		return json_encode($this->getMe()->result);
+	}
+	
+	/**
+	 * Magic method to get private properties and avoid its override
+	 */
+	public function __get($key) {
+		return $this->$key;
+	}	
 	
 	/**
 	 * Responds directly the webhook with a method and its arguments
@@ -71,31 +205,7 @@ class Bot {
 		header("Content-Type: application/json");
 		$arguments['method'] = $method;
 		echo json_encode($arguments);
-	}
-	
-	
-	/**
-	 * Handle calls of unexistent methods. i.e. BotAPI methods, which aren't set on this file.
-	 *
-	 * Every unexistent method and its arguments will be handled by __call() when called. Because of this, methods calls are case-insensitive. 
-	 *
-	 * @param string $method Method name
-	 * @param array $arguments Associative array with arguments
-	 *
-	 * @return MethodResult
-	 */
-	public function __call(string $method, array $arguments = NULL) {
-		if (!$arguments) $arguments = [[]];
-		$url = "https://api.telegram.org/bot{$this->bot_token}/{$method}";
-		$reply = $this->sendAPIRequest($url, $arguments[0]);
-		
-		$reply = new MethodResult($reply);
-		if (!$reply['ok'] && $this->debug && error_reporting() > 0) {
-			@$this->send(json_encode($reply->data), ['chat_id' => $this->debug_admin]);
-		}
-		return $reply;
-	}
-	
+	}	
 	
 	/**
 	 * Downloads a remote file hosted on Telegram servers to a relative path, by its file_id.
@@ -116,8 +226,7 @@ class Bot {
 			return false;
 		}
 		return file_put_contents($local_file_path, $contents);
-	}
-	
+	}	
 	
 	/**
 	 * Reads and return the contents of a remote file.
@@ -129,11 +238,10 @@ class Bot {
 	 * @return string
 	 */
 	public function read_file(string $file_id) {
-		$file_path = $this->getFile(['file_id' => $file_id])->file_path;
+		$file_path = $this->getFile(['file_id' => $file_id])->result->file_path;
 		$file_url = "https://api.telegram.org/file/bot{$this->bot_token}/{$file_path}";
 		return file_get_contents($file_url);
-	}
-	
+	}	
 	
 	/**
 	 * Quick way to send a message.
@@ -146,7 +254,7 @@ class Bot {
 	 * @return MethodResult
 	 */
 	public function send(string $text, array $params = []) {
-		$default = ['chat_id' => $this->ChatID(), 'parse_mode' => 'HTML', 'disable_web_page_preview' => TRUE, 'text' => $text];
+		$default = ['chat_id' => $this->ChatID(), 'parse_mode' => $this->default_parse_mode, 'disable_web_page_preview' => TRUE, 'text' => $text];
 		if ($params == []) {
 			return $this->sendMessage($default);
 		} else {
@@ -155,8 +263,7 @@ class Bot {
 			}
 			return $this->sendMessage($default);
 		}
-	}
-	
+	}	
 	
 	/**
 	 * Quick way to reply the received message.
@@ -169,7 +276,7 @@ class Bot {
 	 * @return MethodResult
 	 */
 	public function reply(string $text, array $params = []) {
-		$default = ['chat_id' => $this->ChatID(), 'parse_mode' => 'HTML', 'disable_web_page_preview' => TRUE, 'reply_to_message_id' => $this->MessageID(), 'text' => $text];
+		$default = ['chat_id' => $this->ChatID(), 'parse_mode' => $this->default_parse_mode, 'disable_web_page_preview' => TRUE, 'reply_to_message_id' => $this->MessageID(), 'text' => $text];
 		if ($params == []) {
 			return $this->sendMessage($default);
 		} else {
@@ -179,8 +286,7 @@ class Bot {
 			$default['text'] = $text;
 			return $this->sendMessage($default);
 		}
-	}
-	
+	}	
 	
 	/**
 	 * Quick way to edit a message.
@@ -193,7 +299,7 @@ class Bot {
 	 * @return MethodResult
 	 */
 	public function edit(string $text, array $params = []) {
-		$default = ['chat_id' => $this->ChatID(), 'parse_mode' => 'HTML', 'disable_web_page_preview' => TRUE, 'text' => $text, 'message_id' => $this->MessageID()];
+		$default = ['chat_id' => $this->ChatID(), 'parse_mode' => $this->default_parse_mode, 'disable_web_page_preview' => TRUE, 'text' => $text, 'message_id' => $this->MessageID()];
 		if ($params == []) {
 			return $this->editMessageText($default);
 		} else {
@@ -203,8 +309,7 @@ class Bot {
 			$default['text'] = $text;
 			return $this->editMessageText($default);
 		}
-	}
- 
+	} 
 	
 	/**
 	 * Quick way to send a file as document.
@@ -218,11 +323,14 @@ class Bot {
 	 */
 	public function doc(string $filename, array $params = []) {
 		$default = ['chat_id' => $this->ChatID(), 'parse_mode' => 'HTML', 'disable_web_page_preview' => TRUE];
-		$document = curl_file_create($filename);
-		if ($document) {
-			$this->action("upload_document");
+		$document = curl_file_create(realpath($filename));
+		if (file_exists(realpath($filename)) && !is_dir(realpath($filename))) {
+			$default['document'] = $document;
+			@$this->action("upload_document");
+		} else {
+			$default['document'] = $filename;
+			@$this->action("upload_document");
 		}
-		$default['document'] = $document;
 		
 		if ($params == []) {
 			return $this->sendDocument($default);
@@ -233,7 +341,6 @@ class Bot {
 			return $this->sendDocument($default);
 		}
 	}
-	
 	
 	/**
 	 * Quick way to send a ChatAction.
@@ -255,8 +362,7 @@ class Bot {
 			}
 			return $this->sendChatAction($default);
 		}
-	}
-	
+	}	
 	
 	/**
 	 * Dinamically generates a mention to a user.
@@ -271,13 +377,13 @@ class Bot {
 	public function mention($user_id, $parse_mode = 'html') {
 		$parse_mode = strtolower($parse_mode);
 		$info = @$this->Chat($user_id);
-		if (!$info) {
+		if (!$info || !$info['first_name']) {
 			return $user_id;
 		}
+		
 		$mention = isset($info['username'])? "@{$info['username']}" : ($parse_mode == 'html'? "<a href='tg://user?id={$user_id}'>{$info['first_name']}</a>" : "[{$info['first_name']}](tg://user?id={$user_id})");
 		return $mention;
-	}
-	
+	}	
 	
 	/**
 	 * Returns the current value for the data (used by data shortcuts)
@@ -294,8 +400,7 @@ class Bot {
 		}
 		
 		return $this->data;
-	}
- 
+	} 
 	
 	/**
 	 * Overwrites a new data to the object.
@@ -309,8 +414,7 @@ class Bot {
 	public function setData(array $data) {
 		$this->data = $data;
 		$this->update_type = @array_keys($this->data)[1];
-	}
-	
+	}	
 	
 	/**
 	 * Returns the current update type.
@@ -322,11 +426,10 @@ class Bot {
 	 */
 	public function getUpdateType() {
 		return $this->update_type;
-	}
-	
+	}	
 	
 	/**
-	 * Search for a value inside the update.
+	 * Return a value inside the update data.
 	 *
 	 * The priority is given to the data outside 'message' field. If the value is not found, the second search for the same field will be made inside 'message' (given in callback_query updates). If not found, NULL is returned.
 	 *
@@ -335,27 +438,31 @@ class Bot {
 	 * @return array, integer or string
 	 */
 	public function getValue(string $search) {
-		return $this->data[$this->update_type][$search] ?? $this->data[$this->update_type]['message'][$search] ?? NULL;
+		$value = $this->data[$this->update_type][$search] ?? $this->data[$this->update_type]['message'][$search] ?? null;
+		if ($value && (is_array($value) || is_object($value))) {
+			$obj = new ArrayObj($value);
+			return $obj;
+		} else {
+			return $value;
+		}
 	}
-	
 	
 	/**
 	 * Checks if an user is member of the specified chat.
 	 *
-	 * @param int $user_id The user is
+	 * @param int $user_id The user id
 	 * @param $chat_id The chat id
 	 *
 	 * @return boolean
 	 */
 	public function in_chat(int $user_id, $chat_id) {
-		$member = $this->getChatMember(['chat_id' => $chat_id, 'user_id' => $user_id]);
+		$member = @$this->getChatMember(['chat_id' => $chat_id, 'user_id' => $user_id]);
 		if (!$member['ok'] || in_array($member['result']['status'], ['left', 'kicked'])) {
 			return FALSE;
 		}
 		
 		return TRUE;
-	}
-	
+	}	
 	
 	/**
 	 * Check if the current chat is a supergroup
@@ -365,10 +472,11 @@ class Bot {
 	 */
 	public function is_group() {
 		$chat = $this->getValue('chat');
-		if (!$chat) return FALSE;
+		if (!$chat) {
+			return FALSE;
+		}
 		return ($chat['type'] == 'supergroup') || ($chat['type'] == 'group');
-	}
-	
+	}	
 	
 	/**
 	 * Check if the current chat is a supergroup
@@ -378,10 +486,11 @@ class Bot {
 	 */
 	public function is_private() {
 		$chat = $this->getValue('chat');
-		if (!$chat) return FALSE;
+		if (!$chat) {
+			return FALSE;
+		}
 		return $chat['type'] == 'private';
-	}
-	
+	}	
 	
 	/**
 	 * Check if a user is admin of the specified chat
@@ -400,7 +509,7 @@ class Bot {
 		if (!$chat_id) {
 			$chat_id = $this->ChatID();
 		}
-		$member = $this->getChatMember(['chat_id' => $chat_id, 'user_id' => $user_id]);
+		$member = @$this->getChatMember(['chat_id' => $chat_id, 'user_id' => $user_id]);
 		return in_array($member['result']['status'], ['administrator', 'creator']);
 	}
 	
@@ -515,6 +624,7 @@ class Bot {
 	public function Entities() {
 		return $this->getValue('entities') ?? $this->getValue('caption_entities');
 	}
+
 	##### ####### #####
 	
 	/**
@@ -530,90 +640,25 @@ class Bot {
 		if (!$chat_id) {
 			$chat_id = $this->ChatID();
 		}
-		$chat = $this->getChat(['chat_id' => $chat_id]);
+		$chat = @$this->getChat(['chat_id' => $chat_id]);
 		if ($chat['ok']) {
 			return $chat['result'];
 		}
 		return FALSE;
 	}
-}
-
-# A MethodResult instance holding the last method result
-$lastResult = NULL;
-
-/**
- * Class that holds the result of every method call made with phgram
- *
- * @author Cezar Pauxis (https://t.me/usernein)
-*/ 
-class MethodResult implements ArrayAccess {
-	public $data = [];
-	public $json = '[]';
-	public $ok, $result, $description, $error_code, $parameters;
 	
 	/**
-	 * The object constructor.
-	 *
-	 * @param string The method result as JSON.
+	 * A function to avoid repeated webhooks (might be delivery due to timeout)
 	 */
-	public function __construct(string $json_result, bool $register_last_result = TRUE) {
-		global $lastResult;
-		$this->json = $json_result;
-		$this->data = json_decode($json_result, TRUE);
-		
-		$data = json_decode($json_result);
-		foreach ($data as $key => $value) {
-			$this->$key = $value;
-		}
-		if ($register_last_result == TRUE) {
-			$lastResult = new MethodResult($json_result, FALSE);
-		}
+	public function protect() {
+		$protection = getcwd()."/{$this->UpdateID()}.run";
+		if (!file_exists($protection)) file_put_contents($protection, '1');
+		else exit;
+		$protection = realpath($protection);
+		$string = "register_shutdown_function(function() { @unlink('{$protection}'); });";
+		eval($string);
+		return $protection;
 	}
-	
-	/**
-	 * Cast the object into a string
-	 *
-	 * @return string
-	 */
-	public function __toString() {
-		return json_encode($this->data);
-	}
-	
-	/**
-	 * Magic method which helps to get values from the result data
-	 *
-	 * @return array, integer or string
-	 */
-	public function __get($index) {
-		return $this->$index ?? $this->result->$index ?? NULL;
-	}
-	
-	##### Functions implemented by ArrayAccess #####
-	public function offsetGet($index) {
-		return $this->data[$index] ?? $this->data['result'][$index] ?? NULL;
-	}
-	public function offsetSet($index, $value) {
-		if (isset($this->data[$index])) {
-			$this->data[$index] = $value;
-		} else if (isset($this->data['result'][$index])) {
-			$this->data['result'][$index] = $value;
-		} else {
-			$this->$index = $value;
-		}
-	}
-	public function offsetExists($index) {
-		return (isset($this->data[$index]) || isset($this->data['result'][$index]));
-	}
-	public function offsetUnset($index) {
-		if (isset($this->data[$index])) {
-			unset($this->data[$index]);
-		} else if (isset($this->data['result'][$index])) {
-			unset($this->data['result'][$index]);
-		} else {
-			unset($this->$index);
-		}
-	}
-	##### ####### #####
 }
 
 /**

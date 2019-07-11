@@ -7,14 +7,14 @@ Based on [TelegramBotPHP](https://github.com/Eleirbag89/TelegramBotPHP).
 * PHP 7.0 or greater.
 
 ## Installing
-* Download `bot.class.php` and save it on your project directory.
-* Add `require 'bot.class.php';` at the top of your script.
+* Download `phgram.phar` and save it on your project directory.
+* Add `require 'phgram.phar';` at the top of your script.
 
 ## Examples
 ### Webhooks
 ```php
 <?php
-require 'bot.class.php';
+require 'phgram.phar';
 $bot = new Bot('TOKEN:HERE');
 
 $text = $bot->Text();
@@ -27,7 +27,7 @@ if ($text == '/start') {
 ### Long polling
 ```php
 <?php
-require 'bot.class.php';
+require 'phgram.phar';
 $bot = new Bot('TOKEN:HERE');
 
 $offset = 0;
@@ -90,10 +90,18 @@ Name|Method|Default parameters|Note
 ---|---|---|---
 send|sendMessage|chat\_id=ChatID(), parse\_mode=HTML, disable\_web\_page\_preview=TRUE|The first parameter is the text.
 reply|sendMessage|chat\_id=ChatID(), parse\_mode=HTML, disable\_web\_page\_preview=TRUE, reply\_to\_message\_id=MessageID()|The first parameter is the text.
-edit|editMessageText|chat\_id=ChatID(), parse\_mode=HTML, disable\_web\_page\_preview=TRUE, message\_id=MessageID()|The first parameter is the text.
+edit|editMessageText|chat\_id=ChatID(), parse\_mode=HTML, disable\_web\_page\_preview=TRUE, message\_id=MessageID()|The first parameter is the text. Note: if you ommit the 'message_id', it will assume as the rceived 'message_id' on the update, and it will work only with CallbackQuery updates.
 doc|sendDocument|chat\_id=ChatID(), parse\_mode=HTML, disable\_web\_page\_preview=TRUE|The first parameter is the relative path to the document to upload.
 action|sendChatAction|chat\_id=ChatID(), action=typing|The first parameter, also optional, is the action.
 
+To change the default parse mode (HTML), overwrite the value of the attribute $bot->default_parse_mode:
+```php
+$bot->send('<i>Hi!</i>');
+$bot->default_parse_mode = 'Markdown';
+$bot->send('_Hi!_');
+$bot->default_parse_mode = 'HTML';
+$bot->send('<i>Hi, again!</i>);
+```
 ### Special shortcurts:
 
 Name|Description|Parameters|Return|Note
@@ -122,7 +130,7 @@ $message_id = $update['message']['message_id'];
 phgram gives you simple and dinamic method to get these values:
 ```
 <?php
-include 'bot.class.php';
+include 'phgram.phar';
 $bot = new Bot('TOKEN:HERE');
 
 $text = $bot->Text();
@@ -130,11 +138,11 @@ $chat_id = $bot->ChatID();
 $user_id = $bot->UserID();
 $message_id = $bot->MessageID();
 ```
-Doesn't really matter what the update is of. If the value exists, it is returned. If not, NULL is returned.
+Doesn't really matter the update type. If the value exists, it is returned. If not, NULL is returned.
 
 There are some special cases, as with calback\_query, that has 'message' field. The internal function 'getValue' will always search the value firstly outside 'message' field. If not found, it will search a correspondent value in inside 'message' field of callback\_query.
 
-e.g. in a callback\_query update, Text() will return the text of the message with the clicked button. However UserID() will return the id of the user that clicked the button, because callback\_query has a 'from' field and it gains priority over the 'from' inside 'message'.
+e.g. in a callback\_query update, Text() will return the text of the message with the selected button. However UserID() will return the id of the user that selected the button, because callback\_query has a 'from' field and it gains priority over the 'from' inside 'message'.
 
 This is the complete list of data shortcuts methods:
 * Text()
@@ -163,6 +171,15 @@ This is the complete list of data shortcuts methods:
 * UpdateID()
 * ForwardFrom()
 * ForwardFromChat()
+
+Is important to notice that these methods return a ArrayObj instance, so you can get it values both as ['keys'] and as ->properties, mixing or not. Example:
+```php
+$replied = $bot->ReplyToMessage();
+echo $replied['from']['id'] . "\n"; // correct
+echo $replied->from->id . "\n"; // correct
+echo $replied['from']->id . "\n"; // correct
+echo $replied->from['id'] . "\n"; // correct
+```
 
 ### Utilities
 
@@ -195,10 +212,10 @@ VALUE is the data of the button.
 TYPE is the type of the button (callback_data, url...). If TYPE is 'callback\_data', VALUE will be used as callback data. If TYPE is 'url', the VALUE will be the url which the button will link to, and so on.
 
 _Note:_ Only TEXT and VALUE are required. The default value of TYPE is callback\_data.
-So, for callback buttons, you can ommit the TYPE parameters. Check this example:
+So, for callback buttons, you can ommit the TYPE parameter. Check this example:
 ```
 <?php
-require 'bot.class.php';
+require 'phgram.phar';
 $bot = new Bot('TOKEN:HERE');
 $options = [
 	[ ['Callback 1', 'callback 1'], ['Callback 2', 'callback 2'] ],
@@ -273,7 +290,7 @@ The only parameter is the boolean $selective, that is optional. The default valu
 A method call might fail sometimes. To get reports of these errors, you may pass a chat id as second parameter to the Bot class constructor. Example:
 ```
 <?php
-require 'bot.class.php';
+require 'phgram.phar';
 $bot = new Bot('TOKEN:HERE', 276145711);
 ```
 The bot will send the JSON-encoded response of the unsuccessful call. Example:
@@ -284,7 +301,7 @@ To disable/enable error reporting, you can overwrite the `$debug` attribute with
 To disable error reporting for a single method, put '@' before the call:
 ```
 <?php
-require 'bot.class.php';
+require 'phgram.phar';
 $bot = new Bot('TOKEN:HERE', 276145711);
 $bot->debug = FALSE; # disabled
 $bot->debug = TRUE; # enabled again
@@ -297,7 +314,7 @@ If you set the PHP value 'error_reporting' to 0, you will not receive these repo
 You can also set a new value for `$debug_admin` attribute, to tell the script where should it send the reports.
 ```
 <?php
-require 'bot.class.php';
+require 'phgram.phar';
 $bot = new Bot('TOKEN:HERE', 276145711);
 $bot->debug_admin = 204807919; # not me anymore :(
 $bot->debug_admin = 276145711; # me again :)
@@ -305,19 +322,46 @@ $bot->debug_admin = 200097591; # changed again.
 $bot->debug = FALSE; # nobody
 ```
 
+You can also configure phgram to report internal PHP errors. There's a class called BotErrorHandler for it:
+```php
+$handler = new BotErrorHandler('TOKEN:HERE', 276145711); # Done!
+```
+The first parameter is the bot token (to send the alert) and the second is the chat id (to receive the alert);
+You can also pass a third parameter if you don't want the update data to be shown:
+```php
+$handler = new BotErrorHandler('TOKEN:HERE', 276145711, false); # Done!
+```
+You can change the values by overwriting the attributes:
+```php
+$handler->bot = 'NEW:TOKEN';
+$handler->admin = 200097591;
+$handler->show_data = true;
+```
+
 ## MethodResult
 Every method called by phgram (even shortcuts) returns to you a MethodResult instance.
-This doesn't affect you or your code. Since it implements ArrayAccess, you can access its values by ['indexes']. But remember that it is also an object, so you can also access its values as $object->attributes.
+This doesn't affect you or your old-styled (with arrays) code. Since it implements ArrayAccess, you can access its values by ['indexes']. But remember that it is also an object, so you can also access its values as $object->attributes.
 
 The coolest thing here is that you don't need to pass through 'result' to access its values:
 ```
 <?php
-require 'bot.class.php';
+require 'phgram.phar';
 $bot = new Bot('TOKEN:HERE');
 
 $result = $bot->send('Hey!');
 echo $result['result']['message_id'] ."\n"; # this works!
 echo $result->result->message_id ."\n"; # this also works!
 echo $result['message_id'] ."\n"; # yeah, it works!
-echo $result->message_id ."\n"; # why it shouldn't? :)
+echo $result->message_id ."\n"; # why shouldn't it work? :)
+```
+
+Also, if the API result is a Message object, you can use it to execute methods in the same message:
+```php
+$msg = $bot->send('Hey!');
+$msg->edit('Hi.'); # will edit the sent message
+$msg->append(' How are you?'); # now the message text is "Hi. How are you?"
+$msg->reply('Do you love phgram?'); # will send a new message replying to the $msg message
+$msg->forward(200097591); # will forward the message to the user 200097591
+$msg->forward([276145711, 200097591, 204807919]); # you can also pass an array of recipients
+$msg->delete(); # will delete the message
 ```
