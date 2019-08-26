@@ -1,11 +1,20 @@
-<?php
-require 'phgram.phar';
-$bot = new Bot('904830657:AAF56gfJU6lNxbTTxl-M3CeI7UjmR3oPWqs');
+<?php 
+define('BOT_TOKEN', '904830657:AAF56gfJU6lNxbTTxl-M3CeI7UjmR3oPWqs');
+define('API_URL', 'https://api.telegram.org/bot'.BOT_TOKEN.'/');
+	
+// read incoming info and grab the chatID
+$content = file_get_contents("php://input");
+$update = json_decode($content, true);
+$chatID = $update["message"]["chat"]["id"];
+		
+// compose reply
+$reply =  sendMessage();
+		
+// send reply
+$sendto =API_URL."sendmessage?chat_id=".$chatID."&text=".$reply;
+file_get_contents($sendto);
 
-$text = $bot->Text();
-$chat_id = $bot->ChatID();
-
-if ($text == '/start') {
-	$bot->sendMessage(['chat_id' => $chat_id, 'text' => 'Hello World!']);
+function sendMessage(){
+$message = "I am a baby bot.";
+return $message;
 }
-?>
