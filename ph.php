@@ -1,5 +1,5 @@
 <?php 
-define('BOT_TOKEN', '904830657:AAF56gfJU6lNxbTTxl-M3CeI7UjmR3oPWqs');
+define('BOT_TOKEN', '842773374:AAExTsyurbIJZoqErTqbOouJgm9jkfMKOf0');
 define('API_URL', 'https://api.telegram.org/bot'.BOT_TOKEN.'/');
 	
 // read incoming info and grab the chatID
